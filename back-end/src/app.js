@@ -13,6 +13,13 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   .map(origin => origin.trim())
   .filter(Boolean) ?? []
 
+import cors from 'cors'
+
+app.use(cors({
+ origin: process.env.ALLOWED_ORIGINS.split(','),
+ // credentials: true
+}))
+  
 app.use((req, res, next) => {
   const origin = req.headers.origin
   if(origin && allowedOrigins.includes(origin)) {
