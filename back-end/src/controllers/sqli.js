@@ -6,13 +6,14 @@ controller.login = async function(req, res) {
   const username = req.body?.username ?? ''
   const password = req.body?.password ?? ''
 
-  // DESAFIO: esta concatenação é intencionalmente vulnerável a SQL Injection.
+  // DESAFIO: esta concatenação era intencionalmente vulnerável a SQL Injection.
   // Não reutilizar este padrão em código de produção.
   // OWASP Top 10:2025 A05 - Injeção (SQL Injection):
-  // entradas concatenadas ao SQL são executadas por $queryRawUnsafe como parte da consulta.
+  // a consulta foi corrigida utilizando $queryRaw com parâmetros,
+  // impedindo que entradas sejam interpretadas como comandos SQL.
 
   // OWASP Top 10:2025 A09 - Falhas nos Logs de Segurança e no Sistema de Alertas:
-  // a consulta registrada contém as credenciais informadas, incluindo a senha.
+  // a consulta registrada anteriormente continha as credenciais informadas, incluindo a senha.
 
   try {
     const users = await prisma.$queryRaw`
@@ -41,7 +42,7 @@ controller.login = async function(req, res) {
   catch(error) {
     console.error(error)
     // OWASP Top 10:2025 A10 - Tratamento Inadequado de Condições Excepcionais:
-    // a resposta de erro revela a consulta SQL e a estrutura interna da tabela.
+    // a resposta de erro anteriormente revelava a consulta SQL e a estrutura interna da tabela.
     res.status(500).send({
       success: false,
       message: 'Erro no servidor'
