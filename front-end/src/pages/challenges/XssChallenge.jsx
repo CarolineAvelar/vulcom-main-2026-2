@@ -1,3 +1,4 @@
+
 import React from 'react'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
@@ -42,6 +43,7 @@ export default function XssChallenge() {
       Esta tela renderiza comentários sem escape de propósito. Use somente dados de laboratório.
     </Alert>
     {error && <Alert severity="error">{error}</Alert>}
+
     <Paper sx={{ p: 3 }}>
       <form onSubmit={handleSubmit}>
         <Stack spacing={2}>
@@ -59,12 +61,16 @@ export default function XssChallenge() {
         </Stack>
       </form>
     </Paper>
+
     <Paper sx={{ p: 3 }}>
-      <Typography variant="h2" sx={{ fontSize: '1.5rem' }}>Comentários</Typography>
-      {/* OWASP Top 10:2025 A05 - Injeção (XSS armazenado):
-          dangerouslySetInnerHTML interpreta o comentário como HTML sem escape ou sanitização. */}
+      <Typography variant="h2" sx={{ fontSize: '1.5rem' }}>
+        Comentários
+      </Typography>
+
       {comments.map(comment => (
-        <div key={comment.id} dangerouslySetInnerHTML={{ __html: `<p>${comment.content}</p>` }} />
+        <div key={comment.id}>
+          <p>{comment.content}</p>
+        </div>
       ))}
     </Paper>
   </Stack>
