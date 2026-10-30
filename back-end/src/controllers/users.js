@@ -1,23 +1,34 @@
 import prisma from '../database/client.js'
 import jwt from 'jsonwebtoken'
+import argon2 from 'argon2'
+
+const argon2Options = {
+  type: argon2.argon2id,
+  memoryCost: 65536,
+  timeCost: 3,
+  parallelism: 4
+}
 
 const controller = {}     // Objeto vazio
 
 controller.create = async function(req, res) {
   try {
+    const passwordHash = await argon2.hash(
+      req.body.password,
+      argon2Options
+    )
 
-    // OWASP Top 10:2025 A01 - Falha no Controle de Acesso:
-    // atribuição em massa permite ao cliente definir campos sensíveis, como is_admin.
-    // OWASP Top 10:2025 A04 - Falhas de Criptografia: password é persistido sem hash.
-    await prisma.user.create({ data: req.body })
+    await prisma.user.create({
+      data: {
+        ...req.body,
+        password: passwordHash
+      }
+    })
 
-    // HTTP 201: Created
     res.status(201).end()
   }
   catch(error) {
     console.error(error)
-
-    // HTTP 500: Internal Server Error
     res.status(500).end()
   }
 }
@@ -62,24 +73,25 @@ controller.retrieveOne = async function(req, res) {
 
 controller.update = async function(req, res) {
   try {
+    const data = { ...req.body }
 
-    // OWASP Top 10:2025 A01 - Falha no Controle de Acesso:
-    // o cliente pode alterar is_admin e password de qualquer usuário por atribuição em massa.
-    // OWASP Top 10:2025 A04 - Falhas de Criptografia: a nova senha também é gravada sem hash.
+    if(data.password) {
+      data.password = await argon2.hash(
+        data.password,
+        argon2Options
+      )
+    }
+
     const result = await prisma.user.update({
       where: { id: Number(req.params.id) },
-      data: req.body
+      data
     })
 
-    // Encontrou e atualizou ~> HTTP 204: No Content
     if(result) res.status(204).end()
-    // Não encontrou (e não atualizou) ~> HTTP 404: Not Found
     else res.status(404).end()
   }
   catch(error) {
     console.error(error)
-
-    // HTTP 500: Internal Server Error
     res.status(500).end()
   }
 }
@@ -108,6 +120,7 @@ controller.delete = async function(req, res) {
   }
 }
 
+
 controller.login = async function(req, res) {
   try {
 
@@ -126,26 +139,48 @@ controller.login = async function(req, res) {
       // HTTP 401: Unauthorized
       if(! user) return res.status(401).end()
 
-      // Usuário encontrado, vamos conferir a senha
-      // OWASP Top 10:2025 A07 - Falhas de Autenticação:
-      // a credencial fixa admin/admin123 ignora a senha cadastrada para esse usuário.
-      // OWASP Top 10:2025 A04 - Falhas de Criptografia:
-      // a comparação direta usa a senha armazenada em texto puro, sem hash adaptativo.
+      // Usuário encontrado, conferir a senha.
+      // Se já estiver em Argon2id, verifica o hash.
+      // Se estiver em texto puro, compara e converte para hash
+      // após um login bem-sucedido.
       let passwordIsValid
-      if(req.body?.username === 'admin' && req.body?.password === 'admin123') passwordIsValid = true
-      else passwordIsValid = user.password === req.body?.password
+
+      if(user.password.startsWith('$argon2id$')) {
+        passwordIsValid = await argon2.verify(
+          user.password,
+          req.body?.password
+        )
+      }
+      else {
+        passwordIsValid = user.password === req.body?.password
+
+        // OWASP Top 10:2025 A04 - Falhas de Criptografia:
+        // converte a senha antiga em texto puro para Argon2id.
+        if(passwordIsValid) {
+          const passwordHash = await argon2.hash(
+            req.body.password,
+            argon2Options
+          )
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { password: passwordHash }
+          })
+        }
+      }
 
       // Se a senha estiver errada, retorna
       // HTTP 401: Unauthorized
       if(! passwordIsValid) return res.status(401).end()
 
-      // Usuário e senha OK, passamos ao procedimento de gerar o token
       // OWASP Top 10:2025 A04 - Falhas de Criptografia:
-      // o JWT inclui password; a assinatura garante integridade, mas não oculta o conteúdo.
+      // remove a senha antes de gerar o JWT e enviar a resposta.
+      const { password, ...publicUser } = user
+
       const token = jwt.sign(
-        user,                       // Dados do usuário
-        process.env.TOKEN_SECRET,   // Senha para criptografar o token
-        { expiresIn: '24h' }        // Prazo de validade do token
+        publicUser,
+        process.env.TOKEN_SECRET,
+        { expiresIn: '24h' }
       )
 
       // Formamos o cookie para enviar ao front-end
@@ -154,14 +189,11 @@ controller.login = async function(req, res) {
         secure: true,   // O cookie será criptografado em conexões https
         sameSite: 'None',
         path: '/',
-        maxAge: 24 * 60 * 60 * 100  // 24h
+        maxAge: 24 * 60 * 60 * 1000  // 24h
       })
 
-      // Retorna o token e o usuário autenticado com
-      // HTTP 200: OK (implícito)
-      // OWASP Top 10:2025 A04 - Falhas de Criptografia:
-      // a resposta também expõe a senha em texto puro no objeto user.
-      res.send({token, user})
+      // Retorna o token e o usuário autenticado sem a senha.
+      res.send({ token, user: publicUser })
 
   }
   catch(error) {
@@ -171,6 +203,7 @@ controller.login = async function(req, res) {
     res.status(500).end()
   }
 }
+
 
 controller.me = function(req, res) {
   // Retorna as informações do usuário autenticado
