@@ -41,37 +41,30 @@ app.use(urlencoded({ extended: false }))
 
 app.use(cookieParser())
 
+/***** MIDDLEWARE DE AUTENTICAÇÃO ******/
+
+import auth from './middleware/auth.js'
+app.use(auth)
+
 
 /*********** ROTAS DA API **************/
 
-
 import carsRouter from './routes/cars.js'
-
 app.use('/cars', carsRouter)
 
-
 import customersRouter from './routes/customers.js'
-
 app.use('/customers', customersRouter)
 
-
 import usersRouter from './routes/users.js'
-
 app.use('/users', usersRouter)
 
-
 // OWASP Top 10:2025 A02 - Configuração Inadequada de Segurança:
-
 // os módulos vulneráveis de treinamento também ficam ativos se o app for usado em produção.
 
 import xssRouter from './routes/xss.js'
-
 app.use('/challenges/xss', xssRouter)
 
-
 import sqliRouter from './routes/sqli.js'
-
 app.use('/challenges/sqli', sqliRouter)
-
 
 export default app
