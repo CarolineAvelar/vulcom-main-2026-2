@@ -156,8 +156,7 @@ controller.login = async function(req, res) {
       else {
         passwordIsValid = user.password === req.body?.password
 
-        // OWASP Top 10:2025 A04 - Falhas de Criptografia:
-        // converte a senha antiga em texto puro para Argon2id.
+       
         if(passwordIsValid) {
           const passwordHash = await argon2.hash(
             req.body.password,
@@ -175,8 +174,6 @@ controller.login = async function(req, res) {
       // HTTP 401: Unauthorized
       if(! passwordIsValid) return res.status(401).end()
 
-      // OWASP Top 10:2025 A04 - Falhas de Criptografia:
-      // remove a senha antes de gerar o JWT e enviar a resposta.
       const { password, ...publicUser } = user
 
       const token = jwt.sign(
