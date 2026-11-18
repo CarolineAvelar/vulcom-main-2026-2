@@ -1,7 +1,7 @@
+
 import React from 'react'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import CoffeeIcon from '@mui/icons-material/Coffee'
 
 export default function FooterBar() {
   return (
@@ -24,7 +24,7 @@ export default function FooterBar() {
           }
         }}
       >
-        Desenvolvido e mantido com <CoffeeIcon fontSize="small" /> por <a href="mailto:professor@faustocintra.com.br">Prof. Fausto Cintra</a>
+        Caroline Avelar | <a href="mailto:caroline.avelar@example.com">caroline.avelar@aluno.cps.sp.gov.br</a>
       </Typography>
     </Toolbar>
   )
